@@ -1,0 +1,97 @@
+name: AS Visa 5 Dakika Takip
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asvisa-scan
+  cancel-in-progress: true
+
+env:
+  TZ: Europe/Istanbul
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+
+    steps:
+      - name: Kodu al
+        uses: actions/checkout@v4
+
+      - name: Node.js hazirla
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Paketleri kur
+        run: npm install --no-audit --no-fund
+
+      - name: AS Visa tara
+        id: scan
+        run: npm run scan
+
+      - name: Ayni slot daha once bildirildi mi?
+        if: steps.scan.outputs.has_slots == 'true'
+        id: slot_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .slot-cache
+          key: asvisa-slot-${{ steps.scan.outputs.slot_fingerprint }}
+
+      - name: Yeni slotu Telegram'a gonder
+        if: steps.scan.outputs.has_slots == 'true' && steps.slot_cache.outputs.cache-hit != 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node scripts/notify.js slots
+
+      - name: Slot bildirimini kaydet
+        if: steps.scan.outputs.has_slots == 'true' && steps.slot_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .slot-cache
+          key: asvisa-slot-${{ steps.scan.outputs.slot_fingerprint }}
+
+      - name: Bugunku dogrulama uyarisi daha once gonderildi mi?
+        if: steps.scan.outputs.has_challenge == 'true'
+        id: challenge_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .challenge-cache
+          key: asvisa-challenge-${{ steps.scan.outputs.challenge_day }}
+
+      - name: CAPTCHA uyarisi Telegram'a gonder
+        if: steps.scan.outputs.has_challenge == 'true' && steps.challenge_cache.outputs.cache-hit != 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node scripts/notify.js challenge
+
+      - name: Dogrulama uyarisi kaydet
+        if: steps.scan.outputs.has_challenge == 'true' && steps.challenge_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .challenge-cache
+          key: asvisa-challenge-${{ steps.scan.outputs.challenge_day }}
+
+      - name: Manuel test sonucunu Telegram'a gonder
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node scripts/notify.js manual
+
+      - name: Debug dosyalarini yukle
+        if: always() && (steps.scan.outputs.has_challenge == 'true' || steps.scan.outputs.has_errors == 'true')
+        uses: actions/upload-artifact@v4
+        with:
+          name: asvisa-debug-${{ github.run_id }}
+          path: debug/
+          if-no-files-found: ignore
+          retention-days: 3
