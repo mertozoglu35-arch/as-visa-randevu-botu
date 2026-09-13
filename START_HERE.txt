@@ -1,0 +1,11 @@
+AS VISA GITHUB BOTU - HIZLI BASLANGIC
+
+1) Bu klasorun icindeki tum dosyalari GitHub'da yeni PUBLIC repoya yukle.
+2) Repo > Settings > Secrets and variables > Actions bolumune gir.
+3) TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID adinda iki Repository Secret ekle.
+4) Repo > Actions > AS Visa 5 Dakika Takip > Run workflow.
+5) Telegram test ozeti gelirse kurulum tamam.
+
+Ayrintili anlatim: KURULUM.md
+
+NOT: CAPTCHA/insan dogrulamasi gelirse GitHub IP'si AS Visa tarafindan engellenmistir. Bu bot CAPTCHA'yi asmaz.

@@ -1,0 +1,14 @@
+{
+  "name": "as-visa-github-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AS Visa appointment availability monitor for GitHub Actions",
+  "type": "module",
+  "scripts": {
+    "scan": "node scripts/scan.js",
+    "notify": "node scripts/notify.js"
+  },
+  "dependencies": {
+    "playwright-core": "1.55.0"
+  }
+}
